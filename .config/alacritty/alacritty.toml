@@ -1,0 +1,37 @@
+[env]
+TERM = "xterm-256color"
+
+[font]
+size = 12.0
+
+[font.bold]
+family = "monospace"
+style = "Bold"
+
+[font.bold_italic]
+family = "monospace"
+style = "Bold Italic"
+
+[font.italic]
+family = "monospace"
+style = "Italic"
+
+[font.normal]
+family = "monospace"
+style = "Regular"
+
+[scrolling]
+history = 10000
+
+[general]
+import = [
+    "~/.config/alacritty/themes/themes/breeze.toml"
+]
+
+[window]
+dimensions = { columns = 100, lines = 30 }
+
+[keyboard]
+bindings = [
+{ key = "N", mods = "Control|Shift", action = "CreateNewWindow" },
+]
