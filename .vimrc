@@ -1,0 +1,20 @@
+set number
+syntax on
+set showmode
+set showcmd
+set mouse=a
+set encoding=utf-8
+filetype indent on
+set autoindent
+set tabstop=4
+set shiftwidth=4
+set expandtab
+set softtabstop=4
+set scrolloff=5
+set ruler
+set showmatch
+"set hlsearch
+set incsearch
+set ignorecase
+set nobackup
+"colorscheme desert
