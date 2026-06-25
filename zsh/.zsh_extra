@@ -1,5 +1,8 @@
-# create a zkbd compatible hash;
-# to add other keys to this hash, see: man 5 terminfo
+# =============================================================================
+#  .zsh_extra — User aliases, keybindings, env vars, and helper functions
+# =============================================================================
+
+# -- Terminal keybindings (zkbd-compatible) -----------------------------------
 typeset -g -A key
 
 key[Home]="${terminfo[khome]}"
@@ -15,113 +18,138 @@ key[PageUp]="${terminfo[kpp]}"
 key[PageDown]="${terminfo[knp]}"
 key[Shift-Tab]="${terminfo[kcbt]}"
 
-# setup key accordingly
 [[ -n "${key[Home]}"      ]] && bindkey -- "${key[Home]}"       beginning-of-line
 [[ -n "${key[End]}"       ]] && bindkey -- "${key[End]}"        end-of-line
 [[ -n "${key[Insert]}"    ]] && bindkey -- "${key[Insert]}"     overwrite-mode
 [[ -n "${key[Backspace]}" ]] && bindkey -- "${key[Backspace]}"  backward-delete-char
 [[ -n "${key[Delete]}"    ]] && bindkey -- "${key[Delete]}"     delete-char
-[[ -n "${key[Up]}"        ]] && bindkey -- "${key[Up]}"         up-line-or-history
-[[ -n "${key[Down]}"      ]] && bindkey -- "${key[Down]}"       down-line-or-history
 [[ -n "${key[Left]}"      ]] && bindkey -- "${key[Left]}"       backward-char
 [[ -n "${key[Right]}"     ]] && bindkey -- "${key[Right]}"      forward-char
 [[ -n "${key[PageUp]}"    ]] && bindkey -- "${key[PageUp]}"     beginning-of-buffer-or-history
 [[ -n "${key[PageDown]}"  ]] && bindkey -- "${key[PageDown]}"   end-of-buffer-or-history
 [[ -n "${key[Shift-Tab]}" ]] && bindkey -- "${key[Shift-Tab]}"  reverse-menu-complete
 
-# Finally, make sure the terminal is in application mode, when zle is
-# active. Only then are the values from $terminfo valid.
-if (( ${+terminfo[smkx]} && ${+terminfo[rmkx]} )); then
-	autoload -Uz add-zle-hook-widget
-	function zle_application_mode_start { echoti smkx }
-	function zle_application_mode_stop { echoti rmkx }
-	add-zle-hook-widget -Uz zle-line-init zle_application_mode_start
-	add-zle-hook-widget -Uz zle-line-finish zle_application_mode_stop
-fi
-
+# Up/Down: search history by prefix (typed text) rather than just line-by-line
 autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
 zle -N up-line-or-beginning-search
 zle -N down-line-or-beginning-search
-
 [[ -n "${key[Up]}"   ]] && bindkey -- "${key[Up]}"   up-line-or-beginning-search
 [[ -n "${key[Down]}" ]] && bindkey -- "${key[Down]}" down-line-or-beginning-search
 
+# Ctrl+Left/Right: jump words
+bindkey "^[[1;5C" forward-word
+bindkey "^[[1;5D" backward-word
 
+# Terminal application mode (ensures $terminfo keys are valid in ZLE)
+if (( ${+terminfo[smkx]} && ${+terminfo[rmkx]} )); then
+    autoload -Uz add-zle-hook-widget
+    function zle_application_mode_start { echoti smkx }
+    function zle_application_mode_stop { echoti rmkx }
+    add-zle-hook-widget -Uz zle-line-init zle_application_mode_start
+    add-zle-hook-widget -Uz zle-line-finish zle_application_mode_stop
+fi
 
-# autoload -Uz add-zsh-hook
-
-#========================================================================================
-# enable color support of ls and also add handy aliases
-# if [ -x /usr/bin/dircolors ]; then
-# 	test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
-# 	alias ls='ls --color=auto'
-# 	alias dir='dir --color=auto'
-# 	alias vdir='vdir --color=auto'
-# 
-# 	alias grep='grep --color=auto --binary-files=without-match'
-#     alias fgrep='grep -F --color=auto -i -n'
-# 	#alias fgrep='fgrep --color=auto -i -n '
-# 	#alias egrep='egrep --color=auto -i -n'
-# fi
-
-# [ "$TERM" = "xterm-kitty" ] && alias ssh="kitty +kitten ssh"
-
+# -- Colorized defaults -------------------------------------------------------
 alias ls='ls --color=auto'
 alias dir='dir --color=auto'
 alias vdir='vdir --color=auto'
-
 alias grep='grep --color=auto --binary-files=without-match'
 alias fgrep='grep -F --color=auto -i -n'
+alias egrep='grep -E --color=auto -i -n'
+alias diff='diff --color=auto --strip-trailing-cr'
 
-# some more ls aliases
+# -- Safety aliases -----------------------------------------------------------
 alias ll='ls -ahl'
+alias la='ls -A'
+alias l='ls -CF'
 alias mv='mv -i'
 alias cp='cp -i'
 alias rm='rm -i'
-alias diff='diff --color=auto --strip-trailing-cr'
-alias ccal='ccal -u '
-#alias emacs='emacs -nw' # no GUI for emacs
 
-#alias sudo='sudo -E'
-#alias nv-run="__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia "
+# -- Convenience aliases ------------------------------------------------------
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias ccal='ccal -u'
+alias mkdir='mkdir -pv'
+alias df='df -h'
+alias free='free -h'
 
-# colored GCC warnings and errors
+# -- Word navigation ----------------------------------------------------------
+# 排除 / . - 让 Ctrl+W / Alt+Backspace 按"路径段"或"单词片段"删除
+WORDCHARS='*?_-.[]~=&;!#$%^(){}<>'
+
+# -- Useful autoloads ---------------------------------------------------------
+autoload -Uz zmv            # 批量重命名: zmv '(*).txt' '$1.md'
+autoload -Uz zcalc          # 命令行计算器: zcalc
+unalias run-help 2>/dev/null
+autoload -Uz run-help       # zsh 内置帮助: run-help cd
+alias help=run-help
+
+# -- zsh-autosuggestions tuning -----------------------------------------------
+# 策略: 同时匹配历史和补全结果
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+# 建议颜色（灰色，与 p10k 协调）
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=8'
+
+# -- Ctrl+R: fuzzy history search ---------------------------------------------
+bindkey '^R' history-incremental-pattern-search-backward
+bindkey '^S' history-incremental-pattern-search-forward
+
+# -- GCC colors ---------------------------------------------------------------
 export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
-#export REPO_URL='https://mirrors.tuna.tsinghua.edu.cn/git/git-repo'
-
-##For Buid android
+# -- ccache (Android / general build) -----------------------------------------
 export USE_CCACHE=1
 export CCACHE_EXEC=/usr/bin/ccache
 export CCACHE_DIR="/run/media/whh/Develop/.ccache/"
-#For rustup
+
+# -- Rustup mirrors -----------------------------------------------------------
 export RUSTUP_UPDATE_ROOT='https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup'
 export RUSTUP_DIST_SERVER='https://mirrors.tuna.tsinghua.edu.cn/rustup'
 
-#ccache -M 30G
-#typeset -U path PATH
-#path=(~/bin $path)
-#export PATH
-
-# Python venv
-#source ~/.local/share/python-pip/bin/activate
-alias active-py='source ~/.local/share/python-pip/bin/activate'
-
-#=====================================================================================
-#fweather()
-#{
-#    ip=$(curl -s cip.cc | head -n 1 | cut -d ":" -f 2 | sed -e 's/^[ \t]*//')
-#    curl -H "Accept-Language: zh" https://wttr.in/@${ip}
-#    unset ip
-#    #curl -H "Accept-Language: zh" "https://wttr.in/@$(curl -s cip.cc | head -n 1 | cut -d ":" -f 2)"
-#}
-
-#alias setproxy="export ALL_PROXY=socks5://127.0.0.1:2080" 
-#alias unsetproxy="unset ALL_PROXY"
-
+# -- Helper functions ---------------------------------------------------------
+# Open captive portal login page (uses default gateway)
 function captive_login() {
-    xdg-open http://$(ip --oneline route get 1.1.1.1 | awk '{print $3}')
-    echo "Done"
+    local gw
+    gw=$(ip --oneline route get 1.1.1.1 2>/dev/null | awk '{print $3}')
+    if [[ -n "$gw" ]]; then
+        xdg-open "http://${gw}" &>/dev/null &
+        echo "Captive portal opened for gateway: ${gw}"
+    else
+        echo "Could not determine default gateway" >&2
+        return 1
+    fi
 }
 
+# Update GRUB on EFI system (use with caution)
+function update_grub() {
+    local efi_partition efi_dev mount_opts
+    efi_partition=$(lsblk -fr 2>/dev/null | grep -i vfat | head -1 | cut -d ' ' -f 1)
+    if [[ -z "$efi_partition" ]]; then
+        echo "Error: No VFAT (EFI) partition found" >&2
+        return 1
+    fi
+    efi_dev="/dev/${efi_partition}"
+    mount_opts="rw,noatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro"
 
+    echo "=> Mounting ${efi_dev} to /efi"
+    sudo mount -o "${mount_opts}" "${efi_dev}" /efi || return 1
+
+    echo "=> Installing GRUB"
+    sudo grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=Arch --boot-directory=/efi || {
+        sudo umount -R /efi 2>/dev/null
+        return 1
+    }
+
+    echo "=> Generating grub.cfg"
+    sudo grub-mkconfig -o /efi/grub/grub.cfg || {
+        sudo umount -R /efi 2>/dev/null
+        return 1
+    }
+
+    sudo sync
+    echo "=> Unmounting /efi"
+    sudo umount -R /efi
+    echo "Done."
+}
