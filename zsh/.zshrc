@@ -15,7 +15,7 @@ setopt hist_ignore_all_dups      # 不记录重复命令
 setopt hist_ignore_space         # 空格开头的命令不记录
 setopt hist_reduce_blanks        # 去除多余空白
 setopt share_history             # 跨终端共享历史
-setopt inc_append_history        # 即时追加历史（而非等 shell 退出）
+#setopt inc_append_history        # 即时追加历史（而非等 shell 退出）
 
 # -- Basic options ------------------------------------------------------------
 setopt auto_cd                   # 输入目录名自动 cd
@@ -23,7 +23,7 @@ setopt auto_pushd                # cd 时自动压栈
 setopt pushd_ignore_dups         # 不重复压栈
 setopt extended_glob             # 启用扩展通配符
 setopt no_beep                   # 关闭蜂鸣
-setopt no_match                  # 无匹配时不报错（配合 extended_glob）
+unsetopt nomatch                 # 无匹配时按原样传递，避免 HEAD^ 等参数报错
 setopt interactive_comments      # 交互式 shell 中允许 # 注释
 setopt glob_complete             # 将通配符展开为补全候选
 
