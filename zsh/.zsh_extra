@@ -94,7 +94,7 @@ ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=8'
 
 # -- Ctrl+R: fuzzy history search ---------------------------------------------
 bindkey '^R' history-incremental-pattern-search-backward
-bindkey '^S' history-incremental-pattern-search-forward
+bindkey -r '^S'
 
 # -- GCC colors ---------------------------------------------------------------
 export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
