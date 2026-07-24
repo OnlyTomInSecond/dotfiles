@@ -3,9 +3,9 @@
 # =============================================================================
 
 # -- Powerlevel10k instant prompt (MUST stay near top) ------------------------
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-    source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
+# if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+#     source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+# fi
 
 # -- History ------------------------------------------------------------------
 HISTFILE=~/.histfile
@@ -14,7 +14,7 @@ SAVEHIST=50000
 setopt hist_ignore_all_dups      # 不记录重复命令
 setopt hist_ignore_space         # 空格开头的命令不记录
 setopt hist_reduce_blanks        # 去除多余空白
-setopt share_history             # 跨终端共享历史
+#setopt share_history             # 跨终端共享历史
 #setopt inc_append_history        # 即时追加历史（而非等 shell 退出）
 
 # -- Basic options ------------------------------------------------------------
@@ -30,7 +30,7 @@ setopt glob_complete             # 将通配符展开为补全候选
 bindkey -e                       # Emacs 风格键绑定
 
 # -- Completions --------------------------------------------------------------
-fpath=(${HOME}/.zsh_packages/zsh-completions/src/ $fpath)
+fpath+=(${HOME}/.zsh_packages/zsh-completions/src/)
 autoload -Uz compinit
 # -C 跳过安全扫描（大幅提速），仅当 zcompdump 超过 24h 时完整重建
 if [[ -f ~/.cache/zsh/zcompdump(#qN.mh-24) ]]; then
@@ -60,14 +60,45 @@ zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
 zstyle ':completion:*:options' list-colors '=(#b)(-- *)=34'  # 长选项用蓝色
 
 # -- Prompt (p10k manages PROMPT directly; no promptinit needed) ------------
-source ${HOME}/.zsh_packages/powerlevel10k/powerlevel10k.zsh-theme
+# source ${HOME}/.zsh_packages/powerlevel10k/powerlevel10k.zsh-theme
 
 # -- Plugins ------------------------------------------------------------------
 source ${HOME}/.zsh_packages/zsh-autosuggestions/zsh-autosuggestions.zsh
 source ${HOME}/.zsh_packages/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh
 
+# prompt
+autoload -U colors
+colors
+
+zmodload zsh/datetime
+autoload -Uz add-zsh-hook
+
+setopt prompt_subst
+
+update_cmd_start() {
+  cmd_start=$EPOCHSECONDS
+}
+
+update_cmd_time() {
+  if [[ -n $cmd_start ]]; then
+    cmd_time=$((EPOCHSECONDS - cmd_start))
+  else
+    cmd_time=0
+  fi
+}
+
+add-zsh-hook preexec update_cmd_start
+add-zsh-hook precmd update_cmd_time
+
+ssh_status() {
+  [[ -n "$SSH_CONNECTION" ]] && echo "SSH "
+}
+
+PROMPT='%F{green}%D{%H:%M:%S}%f %(?::%F{red}[%?]%f )%F{yellow}[$(ssh_status)${cmd_time}s]%f %F{blue}%~%f
+%F{blue}>%f '
+
 # -- P10k config --------------------------------------------------------------
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+# [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 # -- Extra user config --------------------------------------------------------
 source ${HOME}/.zsh_extra
