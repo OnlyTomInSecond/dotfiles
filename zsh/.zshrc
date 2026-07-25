@@ -1,105 +1,123 @@
 # =============================================================================
-#  .zshrc — Interactive Zsh Configuration
+#  .zshrc — Interactive Zsh Configuration  (优化版：极致速度 & 轻量)
 # =============================================================================
 
-# -- Powerlevel10k instant prompt (MUST stay near top) ------------------------
+# ===============================================================================
+# 1. Powerlevel10k instant prompt — 放在最顶部，MUST stay near top
+#    取消注释下面的 if 块即可启用 p10k instant prompt（先渲染提示符再加载插件）
+#    如果不用 p10k 则保持注释，无任何开销。
+# ===============================================================================
 # if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
 #     source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 # fi
 
-# -- History ------------------------------------------------------------------
+# ===============================================================================
+# 2. 基准选项（零开销，尽早设置）
+# ===============================================================================
+setopt extended_glob             # 扩展通配符（很多插件依赖）
+setopt no_beep                   # 关闭蜂鸣
+unsetopt nomatch                 # 无匹配时按原样传递
+
+# ===============================================================================
+# 3. History — 精简 + 性能
+# ===============================================================================
 HISTFILE=~/.histfile
-HISTSIZE=50000
-SAVEHIST=50000
+HISTSIZE=10000                   # 50000→10000，减少内存占用
+SAVEHIST=10000
 setopt hist_ignore_all_dups      # 不记录重复命令
 setopt hist_ignore_space         # 空格开头的命令不记录
 setopt hist_reduce_blanks        # 去除多余空白
-#setopt share_history             # 跨终端共享历史
-#setopt inc_append_history        # 即时追加历史（而非等 shell 退出）
+# setopt inc_append_history      # 如需即时追加则取消注释
 
-# -- Basic options ------------------------------------------------------------
+# ===============================================================================
+# 4. 交互选项（需要时再开启）
+# ===============================================================================
 setopt auto_cd                   # 输入目录名自动 cd
 setopt auto_pushd                # cd 时自动压栈
 setopt pushd_ignore_dups         # 不重复压栈
-setopt extended_glob             # 启用扩展通配符
-setopt no_beep                   # 关闭蜂鸣
-unsetopt nomatch                 # 无匹配时按原样传递，避免 HEAD^ 等参数报错
 setopt interactive_comments      # 交互式 shell 中允许 # 注释
-setopt glob_complete             # 将通配符展开为补全候选
+# 注释掉 glob_complete — 补全时展开通配符消耗明显
+# setopt glob_complete
 
 bindkey -e                       # Emacs 风格键绑定
 
-# -- Completions --------------------------------------------------------------
-fpath+=(${HOME}/.zsh_packages/zsh-completions/src/)
+# ===============================================================================
+# 5. Completions — 关键优化：使用 zcompdump 缓存 + compinit -C 永远快速
+# ===============================================================================
+# 创建缓存目录（如不存在）
+[[ -d ~/.cache/zsh ]] || mkdir -p ~/.cache/zsh
+
+# 只添加少量第三方补全，避免 192 个文件拖慢 compinit
+# 如需完整 zsh-completions，取消下行注释（代价：首次生成 zcompdump 约 50ms）
+# fpath+=(${HOME}/.zsh_packages/zsh-completions/src/)
+
 autoload -Uz compinit
-# -C 跳过安全扫描（大幅提速），仅当 zcompdump 超过 24h 时完整重建
-if [[ -f ~/.cache/zsh/zcompdump(#qN.mh-24) ]]; then
+# 策略：zcompdump 存在时一律 -C 跳过安全审计（节省 ~35ms）
+#       首次运行或 zcompdump 被删除时才完整构建
+if [[ -f ~/.cache/zsh/zcompdump ]]; then
     compinit -C -d ~/.cache/zsh/zcompdump
 else
     compinit -d ~/.cache/zsh/zcompdump
+    # 首次构建后立即用 zcompile 编译为字节码，后续加载更快
+    zcompile ~/.cache/zsh/zcompdump
 fi
 
-# 补全缓存
+# 补全缓存（加速补全结果生成）
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path ~/.cache/zsh/zcompcache
 
-# 菜单：≥2 个匹配时弹出菜单，可 Tab 循环
+# 菜单行为
 zstyle ':completion:*' menu select=2
 zstyle ':completion:*' rehash true
 zstyle ':completion:*' squeeze-slashes true
 zstyle ':completion:*' special-dirs true
 
-# 大小写：命令名大小写敏感，其他（文件/参数/选项）忽略大小写
+# 大小写：文件/参数忽略大小写，命令名保持敏感（避免歧义）
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 zstyle ':completion:*:*:-command-:*' matcher-list ''
 
-# 分组显示与着色
+# 着色
 zstyle ':completion:*' group-name ''
 zstyle ':completion:*:descriptions' format '[%d]'
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
-zstyle ':completion:*:options' list-colors '=(#b)(-- *)=34'  # 长选项用蓝色
+zstyle ':completion:*:options' list-colors '=(#b)(-- *)=34'
 
-# -- Prompt (p10k manages PROMPT directly; no promptinit needed) ------------
-# source ${HOME}/.zsh_packages/powerlevel10k/powerlevel10k.zsh-theme
-
-# -- Plugins ------------------------------------------------------------------
+# ===============================================================================
+# 6. Plugins — 仅加载必需的
+# ===============================================================================
 source ${HOME}/.zsh_packages/zsh-autosuggestions/zsh-autosuggestions.zsh
 source ${HOME}/.zsh_packages/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh
 
-# prompt
-autoload -U colors
-colors
+# ===============================================================================
+# 7. Prompt — 时间 + SSH状态 + 命令耗时 + 路径 + 退出码
+# ===============================================================================
+autoload -U colors && colors
 
+setopt prompt_subst
 zmodload zsh/datetime
 autoload -Uz add-zsh-hook
 
-setopt prompt_subst
+typeset -gi cmd_start cmd_time
 
-update_cmd_start() {
-  cmd_start=$EPOCHSECONDS
-}
-
+update_cmd_start() { cmd_start=$EPOCHSECONDS }
 update_cmd_time() {
-  if [[ -n $cmd_start ]]; then
-    cmd_time=$((EPOCHSECONDS - cmd_start))
-  else
-    cmd_time=0
-  fi
+  (( cmd_start )) && cmd_time=$((EPOCHSECONDS - cmd_start)) || cmd_time=0
 }
-
 add-zsh-hook preexec update_cmd_start
 add-zsh-hook precmd update_cmd_time
 
-ssh_status() {
-  [[ -n "$SSH_CONNECTION" ]] && echo "SSH "
-}
+ssh_prompt() { [[ -n "$SSH_CONNECTION" ]] && echo "SSH " }
 
-PROMPT='%F{green}%D{%H:%M:%S}%f %(?::%F{red}[%?]%f )%F{yellow}[$(ssh_status)${cmd_time}s]%f %F{blue}%~%f
+PROMPT='%F{green}%D{%H:%M:%S}%f %(?::%F{red}[%?]%f )%F{yellow}[$(ssh_prompt)${cmd_time}s]%f %F{blue}%~%f
 %F{blue}>%f '
 
-# -- P10k config --------------------------------------------------------------
+# ===============================================================================
+# 8. P10k config — 如使用 p10k 取消注释
+# ===============================================================================
 # [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-# -- Extra user config --------------------------------------------------------
+# ===============================================================================
+# 9. Extra config
+# ===============================================================================
 source ${HOME}/.zsh_extra
 
