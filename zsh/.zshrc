@@ -97,6 +97,31 @@ setopt prompt_subst
 zmodload zsh/datetime
 autoload -Uz add-zsh-hook
 
+# shorten path
+function short_pwd() {
+  local p="${PWD/#$HOME/~}"
+  local parts=(${(s:/:)p})
+  local total=${#parts[@]}
+  
+  # 单层直接返回
+  [[ $total -le 1 ]] && echo "$p" && return
+  
+  local result=""
+  
+  # 第一层（缩短）
+  [[ "${parts[1]}" == "~" ]] && result="~" || result="/${parts[1][1]}"
+  
+  # 中间层（缩短）
+  for ((i=2; i<total; i++)); do
+    result+="/${parts[i][1]}"
+  done
+  
+  # 最后一层（完整）
+  result+="/${parts[-1]}"
+  
+  echo "$result"
+}
+
 typeset -gi cmd_start cmd_time
 
 update_cmd_start() { cmd_start=$EPOCHSECONDS }
@@ -108,8 +133,17 @@ add-zsh-hook precmd update_cmd_time
 
 ssh_prompt() { [[ -n "$SSH_CONNECTION" ]] && echo "SSH " }
 
-PROMPT='%F{green}%D{%H:%M:%S}%f %(?::%F{red}[%?]%f )%F{yellow}[$(ssh_prompt)${cmd_time}s]%f %F{blue}%~%f
-%F{blue}>%f '
+_TIME='%F{green}%D{%H:%M:%S}%f'
+_EXIT='%(?::%F{red}[%?]%f)'
+_CMD='%F{yellow}[$(ssh_prompt)${cmd_time}s]%f'
+_PWD='%F{blue}$(short_pwd)%f'
+_PROMPT='%F{blue}>%f '
+
+_FIRST_LINE="${_TIME} ${_EXIT} ${_CMD} ${_PWD}"
+_SECOND_LINE="${_PROMPT}"
+
+PROMPT="${_FIRST_LINE}
+${_SECOND_LINE}"
 
 # ===============================================================================
 # 8. P10k config — 如使用 p10k 取消注释
