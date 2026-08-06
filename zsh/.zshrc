@@ -109,11 +109,11 @@ function short_pwd() {
   local result=""
   
   # 第一层（缩短）
-  [[ "${parts[1]}" == "~" ]] && result="~" || result="/${parts[1][1]}"
+  [[ "${parts[1]}" == "~" ]] && result="~" || result="/${parts[1][1,2]}"
   
   # 中间层（缩短）
   for ((i=2; i<total; i++)); do
-    result+="/${parts[i][1]}"
+    result+="/${parts[i][1,2]}"
   done
   
   # 最后一层（完整）
