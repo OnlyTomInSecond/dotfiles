@@ -1,10 +1,9 @@
 # =============================================================================
-#  .zshenv — 始终加载（login + non-login），只放 PATH 等环境变量
+#  .zshenv - always loaded (login + non-login); env vars only
 # =============================================================================
 typeset -U path PATH
 path=(${HOME}/bin $path)
 export PATH
 
-# 跳过 /etc/zsh/* 全局配置，节省 ~5-10ms（如不需要系统级设置）
+# Skip /etc/zsh/* global configs to save ~5-10ms (if system defaults aren't needed)
 # setopt no_global_rcs
-

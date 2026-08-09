@@ -1,11 +1,11 @@
 # =============================================================================
-#  .zsh_extra — Aliases, keybindings, env vars, helper functions (优化版)
+#  .zsh_extra - Aliases, keybindings, env vars, helper functions (optimized)
 # =============================================================================
 
 # ===============================================================================
-# 1. Terminal keybindings — 精简版
+# 1. Terminal keybindings - minimal set
 # ===============================================================================
-# 仅绑定最常用的键，减少 terminfo 查询和 bindkey 调用
+# Bind only the most common keys to cut terminfo lookups and bindkey calls
 typeset -g -A key
 
 key[Home]="${terminfo[khome]}"
@@ -18,18 +18,18 @@ key[Down]="${terminfo[kcud1]}"
 [[ -n "${key[End]}"    ]] && bindkey -- "${key[End]}"    end-of-line
 [[ -n "${key[Delete]}" ]] && bindkey -- "${key[Delete]}" delete-char
 
-# Up/Down: 按已输入前缀搜索历史（替代默认的行-by-行）
+# Up/Down: search history by typed prefix (replaces line-by-line default)
 autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
 zle -N up-line-or-beginning-search
 zle -N down-line-or-beginning-search
 [[ -n "${key[Up]}"   ]] && bindkey -- "${key[Up]}"   up-line-or-beginning-search
 [[ -n "${key[Down]}" ]] && bindkey -- "${key[Down]}" down-line-or-beginning-search
 
-# Ctrl+Left/Right: 按单词跳跃
+# Ctrl+Left/Right: jump by word
 bindkey "^[[1;5C" forward-word
 bindkey "^[[1;5D" backward-word
 
-# 终端应用模式 — 必须启用，否则 Home/End 等键的 terminfo 映射失效
+# Terminal application mode - required, otherwise Home/End terminfo mappings break
 if (( ${+terminfo[smkx]} && ${+terminfo[rmkx]} )); then
     autoload -Uz add-zle-hook-widget
     function zle_application_mode_start { echoti smkx }
@@ -41,50 +41,56 @@ fi
 # ===============================================================================
 # 2. Aliases
 # ===============================================================================
-# 着色
+# Colors
 alias ls='ls --color=auto'
 alias grep='grep --color=auto --binary-files=without-match'
 alias fgrep='grep -F --color=auto -i -n'
 alias egrep='grep -E --color=auto -i -n'
 alias diff='diff --color=auto --strip-trailing-cr'
 
-# 快捷
+# Shortcuts
 alias ll='ls -ahl'
 alias la='ls -A'
 alias l='ls -CF'
 
-# 安全
+# Safety
 alias mv='mv -i'
 alias cp='cp -i'
 alias rm='rm -i'
 
-# 导航
+# Navigation
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 
-# 杂项
+# Misc
 alias mkdir='mkdir -pv'
 alias df='df -h'
 alias free='free -h'
 
 # ===============================================================================
-# 3. Word navigation — 自定义单词边界
+# 3. Word navigation - custom word chars
 # ===============================================================================
 WORDCHARS='*?_-.[]~=&;!#$%^(){}<>'
 
 # ===============================================================================
-# 4. Autoloads — 按需加载，不在启动时注册
+# 4. Autoloads - lazy, not registered at startup
 # ===============================================================================
-# 只在首次使用时 autoload（已在 .zshrc 中处理的部分此处省略）
+# Autoload on first use only (parts handled in .zshrc omitted here)
 autoload -Uz zmv            # zmv '(*).txt' '$1.md'
 autoload -Uz zcalc          # zcalc
 
 # ===============================================================================
-# 5. zsh-autosuggestions — 只用 history 策略（completion 策略显著拖慢补全）
+# 5. zsh-autosuggestions - history strategy only (completion strategy is much slower)
 # ===============================================================================
 ZSH_AUTOSUGGEST_STRATEGY=(history)
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=8'
+
+# Disable per-prompt widget re-binding (plugin default).
+# Why: after deferring fsh, re-binding mixes fsh wrappers into the "original
+# widget" chain, so Alt+f / Ctrl+Right duplicates a word when accepting the
+# gray suggestion; binding once fixes it and saves per-prompt rebind cost.
+typeset -g ZSH_AUTOSUGGEST_MANUAL_REBIND=1
 
 # ===============================================================================
 # 6. Ctrl+R: fuzzy history search
@@ -105,10 +111,10 @@ export RUSTUP_UPDATE_ROOT='https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup'
 export RUSTUP_DIST_SERVER='https://mirrors.tuna.tsinghua.edu.cn/rustup'
 
 # ===============================================================================
-# 8. Helper functions — 惰性定义（使用时才注册到环境）
+# 8. Helper functions - lazily defined (registered on use)
 # ===============================================================================
 
-# captive_login: 打开 captive portal 登录页
+# captive_login: open the captive portal login page
 captive_login() {
     emulate -L zsh
     local gw
@@ -122,7 +128,7 @@ captive_login() {
     fi
 }
 
-# update_grub: 更新 EFI GRUB（谨慎使用）
+# update_grub: update EFI GRUB (use with care)
 update_grub() {
     emulate -L zsh
     local efi_partition efi_dev mount_opts
