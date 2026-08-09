@@ -1,11 +1,11 @@
 #!/usr/bin/env zsh
 # =============================================================================
-#  deploy_zsh.sh — 部署优化后的 zsh 配置 + 预编译 + 缓存初始化
-#  用法: zsh deploy_zsh.sh
+#  deploy_zsh.sh - deploy optimized zsh configs + precompile + cache init
+#  Usage: zsh deploy_zsh.sh
 # =============================================================================
 set -e
 
-DOTFILES="${0:A:h}"                    # 脚本所在目录 (src/dotfiles/zsh)
+DOTFILES="${0:A:h}"                    # script directory (src/dotfiles/zsh)
 HOME_ZSHRC="$HOME/.zshrc"
 HOME_ZHENV="$HOME/.zshenv"
 HOME_ZSH_EXTRA="$HOME/.zsh_extra"
@@ -22,15 +22,15 @@ echo "==> 2/5 创建缓存目录"
 mkdir -p "$CACHE_DIR"
 
 echo "==> 3/5 生成 compinit dump（首次较慢，约 50ms，后续秒开）"
-# 先删除旧的 dump 以强制完整重建
+# Remove the old dump to force a full rebuild
 rm -f "$COMPDUMP" "$COMPDUMP.zwc"
-zsh -i -c "exit"   # 触发 compinit 生成 zcompdump
+zsh -i -c "exit"   # trigger compinit to build zcompdump
 
 echo "==> 4/5 清理旧编译文件 + zcompile 预编译"
-# 清理 home 目录下可能残留的 .zwc 文件
+# Clean up leftover .zwc files under $HOME
 rm -f "$HOME_ZSHRC.zwc" "$HOME_ZSH_EXTRA.zwc"
 
-# 仅编译 zcompdump（放在缓存目录，不污染 $HOME）
+# Compile only zcompdump (kept in the cache dir, keeps $HOME clean)
 zcompile "$COMPDUMP"
 
 echo "==> 5/5 部署完成！"
