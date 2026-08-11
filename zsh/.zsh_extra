@@ -86,10 +86,10 @@ autoload -Uz zcalc          # zcalc
 ZSH_AUTOSUGGEST_STRATEGY=(history)
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=8'
 
-# Disable per-prompt widget re-binding (plugin default).
-# Why: after deferring fsh, re-binding mixes fsh wrappers into the "original
-# widget" chain, so Alt+f / Ctrl+Right duplicates a word when accepting the
-# gray suggestion; binding once fixes it and saves per-prompt rebind cost.
+# Disable per-prompt widget re-binding (plugin default) and bind once.
+# Combined with loading fsh first at the first precmd, autosuggestions binds
+# OVER fsh's wrappers, which keeps Alt+f partial-accept single-layer (no
+# duplicated words) and keeps the gray suggestion highlight as the last writer.
 typeset -g ZSH_AUTOSUGGEST_MANUAL_REBIND=1
 
 # ===============================================================================

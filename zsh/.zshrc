@@ -85,10 +85,11 @@ zstyle ':completion:*:options' list-colors '=(#b)(-- *)=34'
 # ===============================================================================
 # 6. Plugins - load only what's needed
 # ===============================================================================
-source ${HOME}/.zsh_packages/zsh-autosuggestions/zsh-autosuggestions.zsh
-
-# fast-syntax-highlighting is heavy (~5-6ms of startup); defer loading to the first precmd:
-# shell appears immediately, plugin registers before the first prompt, no feature loss
+# fast-syntax-highlighting is heavy (~5-6ms of startup); defer loading to the
+# first precmd. The loader is registered BEFORE autosuggestions' precmd hook so
+# fsh wraps widgets first and autosuggestions binds over them (outer wrapper):
+# its suggestion highlight is applied last and survives fsh's region_highlight
+# rebuild. The shell appears immediately; fsh registers before the first prompt.
 typeset -gi _fsh_loaded=0
 load_fast_syntax_highlighting() {
   (( _fsh_loaded )) && return
@@ -97,6 +98,8 @@ load_fast_syntax_highlighting() {
     source ${HOME}/.zsh_packages/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh
 }
 precmd_functions+=(load_fast_syntax_highlighting)
+
+source ${HOME}/.zsh_packages/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 # ===============================================================================
 # 7. Prompt - time + exit status + command duration + path
