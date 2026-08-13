@@ -102,7 +102,7 @@ precmd_functions+=(load_fast_syntax_highlighting)
 source ${HOME}/.zsh_packages/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 # ===============================================================================
-# 7. Prompt - time + exit status + command duration + path
+# 7. Prompt - time + venv + exit status + command duration + path
 # ===============================================================================
 # Prompt fully precomputed in precmd into plain strings; rendering only does
 # percent expansion: no prompt_subst, no $(...) subprocesses
@@ -145,7 +145,7 @@ function short_pwd() {
 # built-in integer arithmetic and string ops only, no external commands
 typeset -gi cmd_start cmd_time
 typeset -gi CMD_TIME_THRESHOLD=3      # show when >= this many seconds; 0 = always
-typeset -g _time_str _pwd_short _exit_seg _cmd_seg
+typeset -g _time_str _pwd_short _exit_seg _cmd_seg _venv_seg
 
 update_cmd_start() { cmd_start=$EPOCHSECONDS }
 
@@ -157,6 +157,18 @@ update_cmd_time() {
   _exit_seg=''
   (( last_status )) && _exit_seg="%F{red}[${last_status}]%f"
   _short_pwd                           # writes path into _pwd_short, no subprocess
+  # Virtual environment (python venv, conda, pyenv, node venv)
+  local venv=''
+  if [[ -n "$VIRTUAL_ENV" ]]; then
+    venv=${VIRTUAL_ENV:t}
+  elif [[ -n "$CONDA_DEFAULT_ENV" ]]; then
+    venv=$CONDA_DEFAULT_ENV
+  elif [[ -n "$PYENV_VERSION" ]]; then
+    venv=$PYENV_VERSION
+  elif [[ -n "$NODE_VIRTUAL_ENV" ]]; then
+    venv=${NODE_VIRTUAL_ENV:t}
+  fi
+  _venv_seg=${venv:+%F{magenta}[$venv]%f }
   if (( cmd_time >= CMD_TIME_THRESHOLD )); then
     h=$((cmd_time / 3600))
     m=$((cmd_time % 3600 / 60))
@@ -173,7 +185,7 @@ update_cmd_time() {
   [[ -n "$SSH_CONNECTION" ]] && seg="SSH $seg"
   _cmd_seg=${seg:+%F{yellow}[$seg]%f}
   # Assemble the full prompt: percent escapes only, no $(...) or ${...}
-  PROMPT="%F{green}${_time_str}%f ${_exit_seg:+${_exit_seg} }${_cmd_seg:+${_cmd_seg} }%F{blue}${_pwd_short}%f
+  PROMPT="%F{green}${_time_str}%f ${_venv_seg}${_exit_seg:+${_exit_seg} }${_cmd_seg:+${_cmd_seg} }%F{blue}${_pwd_short}%f
 ${_SECOND_LINE}"
 }
 add-zsh-hook preexec update_cmd_start
