@@ -160,3 +160,35 @@ update_grub() {
     sudo umount -R /efi
     echo "Done."
 }
+
+rdp_connect() {
+    local entry="$1"
+    local wallet="kdewallet"
+    local folder="rdp"
+
+    if [ -z "$entry" ]; then
+        echo "usage: rdp <entry>"
+        echo ""
+        echo "valid KWallet [$folder] ："
+        kwallet-query -l "$wallet" -f "$folder" 2>/dev/null || echo "  (KWallet unlock failed)"
+        return 1
+    fi
+
+    # read from kdewallet
+    local raw
+    raw=$(kwallet-query -r "$entry" "$wallet" -f "$folder" 2>/dev/null)
+
+    if [ -z "$raw" ]; then
+        echo "error: failed to read [$folder/$entry]"
+        echo "ensure wallet unlocked or valid"
+        return 1
+    fi
+
+    local user pass host
+    user=$(echo "$raw" | sed -n '1p')
+    pass=$(echo "$raw" | sed -n '2p')
+    host=$(echo "$raw" | sed -n '3p')
+
+    echo "connect [$entry]  $user@$host"
+    sdl-freerdp3 /v:"$host" /u:"$user" /p:"$pass" +sdl-allow-screensaver /clipboard /size:1920x1080 /cert:ignore /gfx /network:lan
+}
