@@ -62,6 +62,13 @@ else
     zcompile ~/.cache/zsh/zcompdump
 fi
 
+# Preload bashcompinit so AOSP/LineageOS envsetup.sh skips its own `compinit`
+# (its guard only checks whether `complete` exists). A second compinit would
+# re-create the completion widgets as raw _main_complete, dropping the
+# autosuggestions/fsh wrappers; then the stale suggestion (POSTDISPLAY) is no
+# longer cleared on tab, so completion chars mix with the gray suggestion.
+autoload -Uz bashcompinit && bashcompinit
+
 # Completion cache (faster completion results)
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path ~/.cache/zsh/zcompcache
@@ -204,3 +211,4 @@ _SECOND_LINE="${_PROMPT}"
 # 9. Extra config
 # ===============================================================================
 source ${HOME}/.zsh_extra
+
