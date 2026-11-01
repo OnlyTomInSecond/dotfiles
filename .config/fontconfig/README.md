@@ -1,203 +1,133 @@
 # Font configuration
 
-User fontconfig configuration for this Arch + KDE Plasma 6 machine
-(kwin_wayland, single 27" 2560x1440 panel ≈ 109 PPI, scale 1.0).
-The live copy is `~/.config/fontconfig`, the source of truth is this
-directory in `~/src/dotfiles`.
+User fontconfig configuration for Arch + KDE Plasma 6 (Wayland, 27"
+2560x1440, ≈109 PPI, scale 1.0).  The live copy is `~/.config/fontconfig`,
+the source of truth is this directory in `~/src/dotfiles`.
 
 ## Layout
 
 ```
 ~/.config/fontconfig/
-  conf.d/
-    10-synthetic.conf   synthetic oblique / synthetic bold
-    50-general.conf     generic families (Latin + CJK + emoji) + rendering
-    51-replace.conf     substitute Windows/macOS *Latin* family names
-    52-cjk.conf         locale -> CJK variant (SC/TC/HK/JP/KR)
+  conf.d/50-general.conf   generic families, rendering, synthetic styles
+  tools/font-metrics.cpp   reproduces the KDE Breeze title-bar computation
 ```
 
-`/etc/fonts/conf.d/50-user.conf` loads `conf.d/`, so the files are picked up
-automatically.  Run `fc-cache -f` after editing.
+`/etc/fonts/conf.d/50-user.conf` loads `conf.d/`; run `fc-cache -f` after
+editing.
 
-**`52-cjk.conf` must load last.**  It rewrites `Noto Sans CJK SC` (and the
-serif/mono siblings) to the HK/TC/JP/KR face for the request language; if
-another rule re-inserted the SC face afterwards, the SC face would win again.
-With the old `51-cjk` + `52-replace` numbering exactly that happened:
-`fc-match "sans-serif:lang=ja:charset=4e2d"` returned `Noto Sans CJK SC` for
-every locale.
+## Only generic families are configured
 
-## Choices and rationale
+The config defines `system-ui`, `sans-serif`, `serif` and `monospace`.  It
+does **not** alias concrete names such as Arial, Helvetica, PingFang SC,
+Microsoft YaHei or Songti.
 
-### 1. Monospace: Latin must not be skinny
-
-`monospace` resolves to `Noto Sans Mono` (Latin, 0.60 em advance) with
-`Noto Sans Mono CJK SC` as the CJK fallback (1.00 em) and `Noto Color Emoji`
-before the Jigmo faces:
-
-| metric                  | value |
-| ----------------------- | ----- |
-| Latin advance (M, 0, i) | 9.00 px @ 11 pt |
-| CJK advance (`中`)      | 15.00 px @ 11 pt |
-| CJK / Latin             | 1.67 |
-
-CJK-only monospace faces (Sarasa Mono, Noto Sans Mono CJK alone) force Latin
-to 0.50 em -> strict 1:2 grid and visibly narrow Latin, which this
-configuration avoids; a strict 1:2 face with normal-width Latin is
-`Maple Mono NF CN` (Latin 9.00, CJK 18.00 px), installed here and a drop-in
-alternative if a real 2-cell grid matters more than Noto's Latin shapes.
-
-`Noto Color Emoji` being listed in the monospace stack matters: without it
-`fc-match "monospace:charset=1f600"` walks the fallback chain and lands on
-`Segoe UI Symbol`, i.e. monochrome emoji with a mismatched advance in
-terminals.
-
-### 2. KDE Breeze title bar must stay thin at 11pt
-
-KDecoration3 computes the title bar from the window-title font:
-
-```cpp
-// src/decorationsettings.cpp
-int gridUnit = QFontMetrics(font).boundingRect(QLatin1Char('M')).height();
-if (gridUnit % 2 != 0) gridUnit++;
-smallSpacing = qMax(2, gridUnit / 4);
-
-// kdecoration/breezedecoration.cpp
-buttonSize     = gridUnit * 2;
-titleBarHeight = max(fontMetrics.height(), buttonSize) + smallSpacing * 4;
-```
-
-Measured with `tools/font-metrics` (Qt6 on Wayland reports `logicalDpi=96`
-regardless of the panel's real 109 PPI):
-
-| font             | cap('M') @ 11pt | gridUnit | title bar |
-| ---------------- | --------------- | -------- | --------- |
-| **Noto Sans**    | 10              | 10       | **28 px** |
-| Source Code Pro  | 10              | 10       | 28 px     |
-| Noto Sans Mono   | 10              | 10       | 28 px     |
-| Noto Sans CJK SC | 11              | 12       | 36 px     |
-| Sarasa UI SC     | 11              | 12       | 36 px     |
-| Maple Mono NF CN | 12              | 12       | 36 px     |
-
-One pixel of cap height crosses the "round up to even" cliff and inflates the
-title bar by ~29 %.  Two things make sure `Noto Sans` (10 px) is the *metric
-source* even under a Chinese/Japanese/Korean locale:
-
-* the generic families (`system-ui`, `sans-serif`, `serif`, `monospace`) are
-  prepended with `binding="strong"` in `50-general.conf`;
-* `hintslight` is kept, because `hintnone` gives Noto Sans an 11 px cap
-  height.
-
-`binding="strong"` is required by fontconfig >= 2.18: strong family names
-outrank the `lang` element, so the Latin font wins for metrics while the CJK
-font stays in the fallback list for the CJK glyphs.  If you ever raise the
-body font to 12 pt (worth trying on this 109 PPI panel, see below), keep the
-`[WM] activeFont` at 11 pt so the 28 px title bar survives.
-
-### 3. Emoji
-
-`Noto Color Emoji` is part of the `sans-serif`, `serif` and `monospace` family
-lists:
+That is intentional.  fontconfig matches per codepoint, so a request for
+`Arial` still returns Arial for Latin and falls back to the CJK face for Han:
 
 ```sh
-fc-match "sans-serif:charset=1f600"   # Noto Color Emoji
-fc-match "monospace:charset=1f600"    # Noto Color Emoji (not Segoe UI Symbol)
-fc-match "monospace:charset=1f21a"    # Noto Color Emoji, not Noto Sans Mono CJK SC
+fc-match Arial                     # Arial
+fc-match "Arial:charset=4e2d"      # Noto Sans CJK SC (Arial has no Han)
+fc-match "PingFang SC:charset=4e2d" # Noto Sans CJK SC (not installed)
 ```
 
-Three font-specific details matter here:
+Aliases for concrete families only replace a typeface the application asked
+for; they are unnecessary for fallback.  They also cause the squared-CJK emoji
+problem described below, because they put a Noto CJK face into the pattern as
+an author-requested family.
 
-* **Terminals fall back per codepoint**, without VS16 (`U+FE0F`) or ZWJ
-  awareness: the first family in the list that covers the character wins.
-  Noto Sans CJK also covers the squared-CJK emoji block (U+1F200-1F2FF), so in
-  the `monospace` stack `Noto Color Emoji` must come *before*
-  `Noto Sans Mono CJK SC`; otherwise `🈚️` (`U+1F21A U+FE0F`) renders with the
-  monochrome CJK glyph.  GUI toolkits (Qt, Firefox) do handle emoji
-  presentation themselves, so `sans-serif`/`serif` keep the CJK face first and
-  only the monospace stack is ordered this way.  Chars that Noto Sans Mono
-  itself covers (arrows, triangles, box drawing, block elements) are
-  unaffected.
-* **`embeddedbitmap=false` would kill the font.** Noto Color Emoji ships only
-  a CBDT/CBLC bitmap strike (136x128 px at 109 ppem, no `glyf` outlines), so
-  the global "no embedded bitmaps" rule is overridden back to `true` for this
-  family.  With `false`, renderers that honour `FC_EMBEDDED_BITMAP` (cairo,
-  parts of the FreeType stack) set `FT_LOAD_NO_BITMAP` and draw an empty
-  outline, i.e. invisible emoji.
-* **Aliases must not name a Noto CJK face.** `51-replace.conf` rewrites
-  Arial / Helvetica / Calibri / Tahoma / Cantarell to `Noto Sans` and
-  Times New Roman to `Noto Serif` -- single, Latin-only families.  The
-  earlier version also appended `Noto Sans CJK SC` and aliased CJK names
-  (`Microsoft YaHei`, `PingFang SC`, `SimSun`, `MS Gothic`, ...) to the CJK
-  faces; that puts the CJK face into the pattern as the *author-requested*
-  font, and because it covers U+1F200-1F2FF, Firefox/Qt then draw the
-  monochrome CJK glyph for 🈚 🈶 🈯 🉐 instead of Noto Color Emoji.  With a
-  bilibili-like stack (`-apple-system, "Segoe UI", "PingFang SC",
-  "Microsoft YaHei", ...`) the old rules made the whole block black and
-  white in Firefox.  Only characters followed by VS16 (`U+FE0F`) escaped,
-  which is why `🈚️` was colourful while `🈶` was not.  Dropping the aliases
-  fixes it: fontconfig still resolves Han to `Noto Sans CJK SC` through the
-  normal fallback, and CJK names now follow `/etc/fonts` classification
-  (sans names -> sans stack, `SimSun`/宋体 -> serif).
-* **Some ZWJ family sequences are monochrome by design.** Since Noto Color
-  Emoji 2.042 Google replaced the family designs; combinations that lack a
-  dedicated artwork use a grey/black placeholder pictogram from
-  `generate_emoji_placeholders.py` (e.g. `👨‍👩‍👧‍👦`).  Dumping the CBDT bitmap for
-  that ligature out of `NotoColorEmoji.ttf` shows the same black-and-white
-  family icon, so this is the font, not fontconfig.  Segoe UI Emoji (COLR,
-  installed via wps-fonts) and Twemoji still draw a colourful family.
+## CJK regional forms: locl, not fontconfig
 
-Noto Color Emoji here is the 2026-09 build: Unicode 16/17 coverage, flags,
-skin tones, keycaps, tag sequences, squared CJK emoji.  Its style is Google's
-flat "blob" look and it is a bitmap font, so it is slightly soft at sizes that
-do not match the 109 ppem strike.  Vector alternatives (`otf-twemoji-colrv1`
-from archlinuxcn, `Segoe UI Emoji` from wps-fonts, `noto-fonts-emoji-3d` from
-extra) scale crisper but have older coverage; Noto Emoji (monochrome) is the
-choice only if emoji should not be colourful at all.
+`Noto Sans CJK SC/TC/HK/JP/KR` are five faces of the same pan-CJK design.
+Every face contains **all** regional glyphs and advertises the **same**
+`charset` and `lang` list.  The face index only changes the default glyph; the
+actual regional form is selected by the OpenType `locl` feature from the text
+language passed to HarfBuzz.
 
-### 4. Locale-correct CJK variants
+Consequences:
 
-`52-cjk.conf` maps the default Simplified-Chinese `Noto Sans CJK SC` /
-`Noto Serif CJK SC` / `Noto Sans Mono CJK SC` to the HK/TC/JP/KR variant based
-on the request language, without changing the Latin metric source (see
-`binding="strong"` above).
+* Pinning `Noto Sans CJK SC` (and the serif/mono siblings) is only a default
+  for renderers that do not pass a language.  It does not force Simplified
+  glyphs in Firefox/Pango/Qt, which use `locl` for `lang=ja`, `zh-Hant`, etc.
+* There is no need for locale-to-face rules (`52-cjk.conf` was removed).  The
+  five faces cannot be distinguished by fontconfig anyway; rules based on the
+  request language only papered over apps that fail to pass the text language
+  and broke on tags such as `ja-JP`, `ko-KR`, `zh-Hant`, `zh-MO`.
+* A terminal or other per-codepoint renderer without language information will
+  use the SC default for all Han.  That is the intended default for this
+  machine; a Japanese-only application should ask for `Noto Sans CJK JP` or set
+  its language explicitly.
 
-### 5. Rendering on this panel
+## Emoji
 
-`hinting=true`, `hintstyle=hintslight`, `rgba=none` (grayscale AA),
-`antialias=true`, `embeddedbitmap=false`.
+`Noto Color Emoji` is placed before the CJK face in all three stacks.  Noto
+Sans CJK also covers the squared-CJK emoji block (U+1F200-1F2FF), and
+terminals choose a fallback per codepoint without looking at VS16/ZWJ; with
+the CJK face first, `🈚️` (`U+1F21A U+FE0F`) rendered as the monochrome CJK
+glyph.
 
-* Grayscale AA is correct on Wayland: KWin/Qt6/GTK4 do not use subpixel AA,
-  and `lcddefault` (XWayland, Xft apps) thins stems.
-* `hintslight` is kept for the title-bar reason above.  FreeType only
-  distinguishes hintslight (light target) from hintmedium == hintfull (normal
-  target).
-* The panel is 109 PPI at scale 1.0 and Qt/Wayland lays out at 96 dpi, so 11 pt
-  text is physically ~12 % smaller than on a 96 PPI monitor.  Bumping UI fonts
-  to 12 pt (and terminals correspondingly) is the cheap fix; no fractional
-  scaling needed.
+`embeddedbitmap=false` is overridden back to `true` for this family: the Noto
+emoji font only ships a CBDT/CBLC bitmap strike.  With `false`, cairo/FreeType
+set `FT_LOAD_NO_BITMAP` and draw nothing.
+
+### Family ZWJ emoji
+
+Upstream Noto Color Emoji 2.042 (package `noto-fonts-emoji` 20260924) renders
+ZWJ family sequences such as `👨‍👩‍👧‍👦` with Google's grey placeholder artwork.
+This is in the font, not in fontconfig, and cannot be fixed by family
+ordering.
+
+This machine uses the blob-style fork instead:
+
+```sh
+paru -S ttf-blobmoji2    # conflicts with / replaces noto-fonts-emoji
+fc-cache -f
+```
+
+It keeps the family name `Noto Color Emoji` and the CBDT format, so the stacks
+above and the `embeddedbitmap=true` exception need no change.  Its artwork is
+the older colourful blob design, including the family sequences.
+
+blobmoji2 17r1 is slightly older than the 2026 Noto build: `U+1FAEB`,
+`U+1FAF9` and `U+1FAFA` are missing and render as tofu unless another emoji
+font covers them.  If that matters, keep the latest Noto font under a different
+family name and append it to the three stacks.
+
+## Rendering and the Breeze title bar
+
+`hinting=true`, `hintstyle=hintslight`, `rgba=none`, `antialias=true`.
+
+Breeze derives its layout grid from the window-title font:
+
+```cpp
+gridUnit     = round_up_to_even(QFontMetrics(font).boundingRect("M").height());
+smallSpacing = max(2, gridUnit / 4);
+buttonSize   = 2 * gridUnit;
+titleBar     = max(fontMetrics.height(), buttonSize) + 4 * smallSpacing;
+```
+
+At 11 pt / 96 dpi, Noto Sans has a 10 px "M" ink box -> 28 px title bar.
+`hintfull` makes it 11 px -> 36 px, and so do high-cap-height faces such as
+Noto Sans CJK SC, Sarasa UI and Maple Mono NF CN.  This is why the Latin face
+is first with `binding="strong"` (fontconfig ≥ 2.18 lets strong families
+outrank `lang`) and why `hintslight` is kept.
+
+Grayscale antialiasing is correct on Wayland; `lcddefault` thins stems in
+XWayland/Xft apps.
 
 ## Verification
 
 ```sh
-# Generic families keep the Latin metric source, CJK face follows the locale
-for l in en_US zh_CN zh_TW zh_HK ja_JP ko_KR; do
-  fc-match "sans-serif:lang=${l%%_*}"; done
+fc-match "sans-serif:charset=4e2d"       # Noto Sans CJK SC
+fc-match "serif:charset=4e2d"            # Noto Serif CJK SC
+fc-match "monospace:charset=4e2d"        # Noto Sans Mono CJK SC
+fc-match "sans-serif:charset=1f600"      # Noto Color Emoji
+fc-match "monospace:charset=1f21a"       # Noto Color Emoji (not the CJK glyph)
+fc-match "Arial:charset=4e2d"            # Noto Sans CJK SC (fallback, no alias)
 
-fc-match "sans-serif:charset=4e2d"    # Noto Sans CJK SC / TC / HK / JP / KR by lang
-fc-match "monospace:charset=4e2d"     # Noto Sans Mono CJK SC ...
-fc-match "sans-serif:charset=1f600"   # Noto Color Emoji
-fc-match "monospace:charset=1f600"    # Noto Color Emoji
-fc-match "Microsoft YaHei:charset=4e2d"  # Noto Sans CJK SC
-fc-match "MS Gothic:charset=4e2d"        # Noto Sans CJK JP
-```
-
-The title-bar height can be reproduced with the tiny Qt program in `tools/`,
-which contains exactly the KDecoration3 computation:
-
-```sh
 cd ~/.config/fontconfig/tools
 g++ -O2 -fPIC font-metrics.cpp -o font-metrics $(pkg-config --cflags --libs Qt6Gui)
 ./font-metrics "Sans Serif" monospace
 ```
 
-Expected `logicalDpi=96`, `Noto Sans 11 capM=10 grid=10 button=20 titleBar=28`
-and `Noto Sans Mono ... LatinM=9.00 CJK=15.00 CJK/Latin=1.67`.
+Expected: `Noto Sans 11 capM=10 grid=10 button=20 titleBar=28`, and
+`Noto Sans Mono LatinM=9.00 CJK=15.00 CJK/Latin=1.67`.
