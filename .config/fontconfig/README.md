@@ -102,7 +102,42 @@ lists:
 ```sh
 fc-match "sans-serif:charset=1f600"   # Noto Color Emoji
 fc-match "monospace:charset=1f600"    # Noto Color Emoji (not Segoe UI Symbol)
+fc-match "monospace:charset=1f21a"    # Noto Color Emoji, not Noto Sans Mono CJK SC
 ```
+
+Three font-specific details matter here:
+
+* **Terminals fall back per codepoint**, without VS16 (`U+FE0F`) or ZWJ
+  awareness: the first family in the list that covers the character wins.
+  Noto Sans CJK also covers the squared-CJK emoji block (U+1F200-1F2FF), so in
+  the `monospace` stack `Noto Color Emoji` must come *before*
+  `Noto Sans Mono CJK SC`; otherwise `🈚️` (`U+1F21A U+FE0F`) renders with the
+  monochrome CJK glyph.  GUI toolkits (Qt, Firefox) do handle emoji
+  presentation themselves, so `sans-serif`/`serif` keep the CJK face first and
+  only the monospace stack is ordered this way.  Chars that Noto Sans Mono
+  itself covers (arrows, triangles, box drawing, block elements) are
+  unaffected.
+* **`embeddedbitmap=false` would kill the font.** Noto Color Emoji ships only
+  a CBDT/CBLC bitmap strike (136x128 px at 109 ppem, no `glyf` outlines), so
+  the global "no embedded bitmaps" rule is overridden back to `true` for this
+  family.  With `false`, renderers that honour `FC_EMBEDDED_BITMAP` (cairo,
+  parts of the FreeType stack) set `FT_LOAD_NO_BITMAP` and draw an empty
+  outline, i.e. invisible emoji.
+* **Some ZWJ family sequences are monochrome by design.** Since Noto Color
+  Emoji 2.042 Google replaced the family designs; combinations that lack a
+  dedicated artwork use a grey/black placeholder pictogram from
+  `generate_emoji_placeholders.py` (e.g. `👨‍👩‍👧‍👦`).  Dumping the CBDT bitmap for
+  that ligature out of `NotoColorEmoji.ttf` shows the same black-and-white
+  family icon, so this is the font, not fontconfig.  Segoe UI Emoji (COLR,
+  installed via wps-fonts) and Twemoji still draw a colourful family.
+
+Noto Color Emoji here is the 2026-09 build: Unicode 16/17 coverage, flags,
+skin tones, keycaps, tag sequences, squared CJK emoji.  Its style is Google's
+flat "blob" look and it is a bitmap font, so it is slightly soft at sizes that
+do not match the 109 ppem strike.  Vector alternatives (`otf-twemoji-colrv1`
+from archlinuxcn, `Segoe UI Emoji` from wps-fonts, `noto-fonts-emoji-3d` from
+extra) scale crisper but have older coverage; Noto Emoji (monochrome) is the
+choice only if emoji should not be colourful at all.
 
 ### 4. Locale-correct CJK variants
 
