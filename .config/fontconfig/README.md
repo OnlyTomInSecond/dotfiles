@@ -12,20 +12,19 @@ directory in `~/src/dotfiles`.
   conf.d/
     10-synthetic.conf   synthetic oblique / synthetic bold
     50-general.conf     generic families (Latin + CJK + emoji) + rendering
-    51-replace.conf     substitute Windows/macOS/web family names
+    51-replace.conf     substitute Windows/macOS *Latin* family names
     52-cjk.conf         locale -> CJK variant (SC/TC/HK/JP/KR)
 ```
 
 `/etc/fonts/conf.d/50-user.conf` loads `conf.d/`, so the files are picked up
 automatically.  Run `fc-cache -f` after editing.
 
-**`52-cjk.conf` must load last.**  `51-replace.conf` rewrites requests such as
-`PingFang SC` / `Microsoft YaHei` / `SimSun` to `Noto Sans CJK SC`; if those
-rules ran after the locale rules, the SC face would be re-inserted ahead of the
-HK/TC/JP/KR face in the family list and win the match again.  With the old
-`51-cjk` + `52-replace` numbering this bug was live: `fc-match
-"sans-serif:lang=ja:charset=4e2d"` returned `Noto Sans CJK SC` for every
-locale.
+**`52-cjk.conf` must load last.**  It rewrites `Noto Sans CJK SC` (and the
+serif/mono siblings) to the HK/TC/JP/KR face for the request language; if
+another rule re-inserted the SC face afterwards, the SC face would win again.
+With the old `51-cjk` + `52-replace` numbering exactly that happened:
+`fc-match "sans-serif:lang=ja:charset=4e2d"` returned `Noto Sans CJK SC` for
+every locale.
 
 ## Choices and rationale
 
@@ -123,6 +122,21 @@ Three font-specific details matter here:
   family.  With `false`, renderers that honour `FC_EMBEDDED_BITMAP` (cairo,
   parts of the FreeType stack) set `FT_LOAD_NO_BITMAP` and draw an empty
   outline, i.e. invisible emoji.
+* **Aliases must not name a Noto CJK face.** `51-replace.conf` rewrites
+  Arial / Helvetica / Calibri / Tahoma / Cantarell to `Noto Sans` and
+  Times New Roman to `Noto Serif` -- single, Latin-only families.  The
+  earlier version also appended `Noto Sans CJK SC` and aliased CJK names
+  (`Microsoft YaHei`, `PingFang SC`, `SimSun`, `MS Gothic`, ...) to the CJK
+  faces; that puts the CJK face into the pattern as the *author-requested*
+  font, and because it covers U+1F200-1F2FF, Firefox/Qt then draw the
+  monochrome CJK glyph for 🈚 🈶 🈯 🉐 instead of Noto Color Emoji.  With a
+  bilibili-like stack (`-apple-system, "Segoe UI", "PingFang SC",
+  "Microsoft YaHei", ...`) the old rules made the whole block black and
+  white in Firefox.  Only characters followed by VS16 (`U+FE0F`) escaped,
+  which is why `🈚️` was colourful while `🈶` was not.  Dropping the aliases
+  fixes it: fontconfig still resolves Han to `Noto Sans CJK SC` through the
+  normal fallback, and CJK names now follow `/etc/fonts` classification
+  (sans names -> sans stack, `SimSun`/宋体 -> serif).
 * **Some ZWJ family sequences are monochrome by design.** Since Noto Color
   Emoji 2.042 Google replaced the family designs; combinations that lack a
   dedicated artwork use a grey/black placeholder pictogram from
